@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Wichtel-Los</title>
+<meta name="description" content="Wichteln ohne Anmeldung: auslosen und jedem sein Los per WhatsApp schicken.">
+<meta property="og:title" content="Wichtel-Los 🎁">
+<meta property="og:description" content="Dein persönliches Los – bitte nur selbst öffnen.">
+<meta name="referrer" content="no-referrer">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎁</text></svg>">
+<style>
+:root {
+  --bg: #faf6f0; --card: #ffffff; --ink: #2b2420; --muted: #75685f; --line: #e6ddd2;
+  --accent: #b3261e; --accent-ink: #ffffff; --soft: #f6e7e4; --ok: #2e7d4f; --wa: #1f8f4e;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #1b1715; --card: #26201d; --ink: #f3ece6; --muted: #b3a69c; --line: #3b332e;
+    --accent: #e0574b; --accent-ink: #1b1715; --soft: #3a2421; --ok: #6cc28f; --wa: #3cc475; color-scheme: dark; }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(32px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+}
+main { max-width: 560px; margin: 0 auto; display: grid; gap: 16px; }
+h1 { font-size: 1.6rem; margin: 8px 0 0; }
+h2 { font-size: 1.1rem; margin: 0 0 8px; }
+p { margin: 0 0 8px; }
+.muted { color: var(--muted); font-size: .92rem; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; }
+label { display: block; font-size: .9rem; color: var(--muted); margin: 8px 0 4px; }
+input, select { width: 100%; font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+input:focus, select:focus, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.row { display: flex; gap: 8px; align-items: center; }
+.row > * { min-width: 0; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
+@media (max-width: 420px) { .grid2 { grid-template-columns: 1fr; } }
+button { font: inherit; cursor: pointer; border-radius: 10px; border: 1px solid var(--line); background: var(--card); color: var(--ink); padding: 10px 14px; }
+button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; width: 100%; padding: 14px; font-size: 1.05rem; }
+button.wa { background: var(--wa); color: #fff; border-color: var(--wa); font-weight: 600; }
+button.icon { padding: 8px 12px; flex: none; }
+button.link { border: none; background: none; color: var(--accent); padding: 4px 0; text-decoration: underline; }
+.person { display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px; margin-bottom: 8px; }
+@media (max-width: 420px) {
+  .person { grid-template-columns: 1fr auto; margin-bottom: 14px; }
+  .person .pname { grid-column: 1; grid-row: 1; } .person button { grid-column: 2; grid-row: 1; } .person .wish { grid-column: 1 / -1; }
+}
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.chip { background: var(--soft); border-radius: 999px; padding: 4px 6px 4px 12px; display: inline-flex; gap: 6px; align-items: center; font-size: .92rem; }
+.chip button { border: none; background: none; padding: 0 6px; color: var(--muted); }
+.error { color: var(--accent); font-weight: 600; margin-top: 8px; }
+.notice { background: var(--soft); border-radius: 12px; padding: 12px 14px; }
+.share { border-top: 1px solid var(--line); padding: 12px 0; display: grid; gap: 8px; }
+.share:first-of-type { border-top: none; }
+.share .name { font-weight: 600; display: flex; justify-content: space-between; gap: 8px; }
+.share .sent { color: var(--ok); font-weight: 500; font-size: .9rem; }
+.share .row { flex-wrap: wrap; }
+.share .row button { flex: 1 1 auto; }
+.reveal { text-align: center; padding: 28px 16px; }
+.reveal .big { font-size: 2.2rem; font-weight: 700; margin: 8px 0 12px; overflow-wrap: anywhere; }
+.facts { display: grid; gap: 6px; text-align: left; margin-top: 16px; }
+.facts div { background: var(--soft); border-radius: 10px; padding: 8px 12px; overflow-wrap: anywhere; }
+footer { text-align: center; }
+[hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<main id="app"></main>
+<noscript><p>Bitte JavaScript aktivieren.</p></noscript>
+
+<script src="wichteln.js"></script>
+<script>
+"use strict";
+const STORE = "wichtel-los.v1";
+const app = document.getElementById("app");
+
+// Kleiner DOM-Helfer: Texte immer über textContent, nie als HTML.
+function h(tag, attrs, ...kids) {
+  const el = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs || {})) {
+    if (v == null || v === false) continue;
+    if (k.startsWith("on")) el.addEventListener(k.slice(2), v);
+    else if (k === "text") el.textContent = v;
+    else el.setAttribute(k, v === true ? "" : v);
+  }
+  for (const kid of kids.flat()) if (kid != null && kid !== false) el.append(kid);
+  return el;
+}
+
+const fmtDate = (iso) => {
+  if (!iso) return "";
+  const d = new Date(iso + "T12:00:00");
+  return isNaN(d) ? iso : d.toLocaleDateString("de-DE", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+};
+
+function load() {
+  try { return JSON.parse(localStorage.getItem(STORE)) || null; } catch (e) { return null; }
+}
+function save() {
+  try { localStorage.setItem(STORE, JSON.stringify(state)); } catch (e) { /* privates Fenster: ohne Speichern weiter */ }
+}
+function fresh() {
+  return { group: { name: "", date: "", budget: "", note: "" }, people: [{ name: "", wish: "" }, { name: "", wish: "" }, { name: "", wish: "" }], excl: [], result: null };
+}
+let state = load() || fresh();
+
+function baseUrl() { return location.origin + location.pathname; }
+
+// ---------------------------------------------------------------- Empfänger
+function renderTicket(code) {
+  const t = Wichteln.decodeTicket(code);
+  show();
+  if (!t) {
+    app.append(h("h1", { text: "🎁 Wichtel-Los" }),
+      h("div", { class: "card" },
+        h("p", { text: "Dieser Link ist unvollständig oder beschädigt." }),
+        h("p", { class: "muted", text: "Öffne bitte den kompletten Link aus der Nachricht. Manche Messenger kürzen lange Links beim Kopieren." })));
+    app.append(footerNew());
+    return;
+  }
+  const card = h("div", { class: "card reveal" });
+  const reveal = () => {
+    card.replaceChildren(
+      h("p", { class: "muted", text: `${t.von}, du beschenkst` }),
+      h("div", { class: "big", id: "empfaenger", text: t.fuer }),
+      h("p", { class: "muted", text: "Psst – nicht verraten! 🤫" }),
+      h("div", { class: "facts" },
+        t.w && h("div", {}, h("strong", { text: "Wunsch: " }), t.w),
+        t.b && h("div", {}, h("strong", { text: "Budget: " }), t.b),
+        t.d && h("div", {}, h("strong", { text: "Bescherung: " }), fmtDate(t.d)),
+        t.m && h("div", {}, h("strong", { text: "Hinweis: " }), t.m)),
+      t.t && h("p", { class: "muted", style: "margin-top:16px", text: `Auslosung vom ${new Date(t.t).toLocaleString("de-DE", { dateStyle: "short", timeStyle: "short" })}` }));
+  };
+  card.append(
+    h("p", { class: "muted", text: t.g ? `Wichteln „${t.g}“` : "Wichteln" }),
+    h("div", { class: "big", text: `Hallo ${t.von}!` }),
+    h("p", { text: `Dieses Los ist nur für ${t.von} bestimmt.` }),
+    h("button", { class: "primary", id: "aufdecken", onclick: reveal, text: `Ich bin ${t.von} – Los aufdecken` }));
+  app.append(h("h1", { text: "🎁 Wichtel-Los" }), card, footerNew());
+}
+
+// Ersetzt den Seiteninhalt; leere Bedingungen (false/undefined) fallen weg.
+function show(...kids) {
+  app.replaceChildren(...kids.flat().filter((k) => k != null && k !== false));
+}
+
+function footerNew() {
+  return h("footer", {}, h("button", { class: "link", text: "Eigene Wichtelgruppe anlegen", onclick: () => { location.hash = ""; } }));
+}
+
+// -------------------------------------------------------------- Organisator
+function renderSetup(error) {
+  const s = state;
+  const field = (lab, key, attrs) => [h("label", { for: "g-" + key, text: lab }),
+    h("input", Object.assign({ id: "g-" + key, value: s.group[key], oninput: (e) => { s.group[key] = e.target.value; save(); } }, attrs))];
+
+  const people = s.people.map((p, i) => h("div", { class: "person" },
+    h("input", { "aria-label": `Name ${i + 1}`, class: "pname", placeholder: `Name ${i + 1}`, value: p.name, autocomplete: "off",
+      oninput: (e) => { p.name = e.target.value; save(); }, onchange: () => exclBox.replaceChildren(...exclusions()) }),
+    h("input", { "aria-label": `Wunsch von Person ${i + 1}`, class: "wish", placeholder: "Wunsch (optional)", value: p.wish,
+      oninput: (e) => { p.wish = e.target.value; save(); } }),
+    h("button", { class: "icon", type: "button", "aria-label": `Person ${i + 1} entfernen`, text: "×",
+      onclick: () => { s.people.splice(i, 1); save(); renderSetup(); } })));
+
+  const exclBox = h("section", { class: "card", id: "excl" }, exclusions());
+
+  show(
+    h("h1", { text: "🎁 Wichtel-Los" }),
+    h("p", { class: "muted", text: "Namen eintragen, auslosen, jedem sein Los per WhatsApp schicken. Ohne Anmeldung – nichts wird auf einem Server gespeichert." }),
+    location.protocol === "file:" && h("div", { class: "notice", text: "Hinweis: Die Seite ist als lokale Datei geöffnet. Damit die Links auf anderen Handys funktionieren, muss sie im Internet liegen (siehe README)." }),
+
+    h("section", { class: "card" }, h("h2", { text: "1. Eure Runde" }),
+      field("Name der Runde", "name", { placeholder: "z. B. Familie Weihnachten 2026", maxlength: 60 }),
+      h("div", { class: "grid2" },
+        h("div", {}, field("Bescherung am", "date", { type: "date" })),
+        h("div", {}, field("Budget", "budget", { placeholder: "z. B. 20 €", maxlength: 30 }))),
+      field("Hinweis für alle (optional)", "note", { placeholder: "z. B. Bitte selbstgemacht", maxlength: 140 })),
+
+    h("section", { class: "card" }, h("h2", { text: "2. Wer macht mit?" }),
+      h("p", { class: "muted", text: "Du selbst kannst mitmachen – die Lose bekommst du nicht zu sehen. Der Wunsch landet beim Wichtel der Person." }),
+      people,
+      h("button", { type: "button", id: "add", text: "+ Person", onclick: () => { s.people.push({ name: "", wish: "" }); save(); renderSetup(); app.querySelectorAll(".pname")[s.people.length - 1].focus(); } })),
+
+    exclBox,
+
+    error && h("p", { class: "error", role: "alert", text: error }),
+    h("button", { class: "primary", id: "draw", text: "Auslosen 🎲", onclick: doDraw }),
+    h("footer", {}, h("button", { class: "link", text: "Alles zurücksetzen", onclick: confirmInline(() => { state = fresh(); save(); renderSetup(); }, "Wirklich alles löschen?") })));
+}
+
+// Block 3 einzeln neu aufbauen, damit Tippen in den Namensfeldern den Fokus behält.
+function exclusions() {
+  const s = state;
+  const names = s.people.map((p) => p.name.trim()).filter(Boolean);
+  s.excl = s.excl.filter(([a, b]) => names.includes(a) && names.includes(b));
+  const selA = h("select", { "aria-label": "Person", id: "ex-a" }, names.map((n) => h("option", { text: n })));
+  const selB = h("select", { "aria-label": "darf nicht ziehen", id: "ex-b" }, names.map((n, i) => h("option", { text: n, selected: i === 1 })));
+  const both = h("input", { type: "checkbox", id: "ex-both", checked: true, style: "width:auto" });
+  const exclChips = s.excl.map(([a, b], i) => h("span", { class: "chip" }, `${a} zieht nicht ${b}`,
+    h("button", { type: "button", "aria-label": "Ausschluss entfernen", text: "×", onclick: () => { s.excl.splice(i, 1); save(); document.getElementById("excl").replaceChildren(...exclusions()); } })));
+
+  return [h("h2", { text: "3. Ausschlüsse (optional)" }),
+      h("p", { class: "muted", text: "Z. B. damit Paare sich nicht gegenseitig ziehen." }),
+      names.length >= 2 ? [
+        h("div", { class: "grid2" }, h("div", {}, h("label", { for: "ex-a", text: "Person" }), selA), h("div", {}, h("label", { for: "ex-b", text: "zieht nicht" }), selB)),
+        h("label", { for: "ex-both", style: "display:flex;gap:8px;align-items:center" }, both, "gilt in beide Richtungen"),
+        h("button", { type: "button", id: "ex-add", text: "Ausschluss hinzufügen", onclick: () => {
+          const a = selA.value, b = selB.value;
+          if (a === b) return;
+          const add = (x, y) => { if (!s.excl.some(([p, q]) => p === x && q === y)) s.excl.push([x, y]); };
+          add(a, b); if (both.checked) add(b, a);
+          save(); document.getElementById("excl").replaceChildren(...exclusions());
+        } })] : h("p", { class: "muted", text: "Erst Namen eintragen." }),
+      h("div", { class: "chips" }, exclChips)].flat();
+}
+
+// confirm() gibt es nicht überall zuverlässig: zweiter Klick bestätigt.
+function confirmInline(fn, question) {
+  return (e) => {
+    const b = e.currentTarget;
+    if (b.dataset.armed) { fn(); return; }
+    b.dataset.armed = "1"; const old = b.textContent; b.textContent = question + " Nochmal tippen.";
+    setTimeout(() => { if (b.isConnected) { delete b.dataset.armed; b.textContent = old; } }, 4000);
+  };
+}
+
+function doDraw() {
+  const s = state;
+  s.people = s.people.filter((p) => p.name.trim() || p.wish.trim());
+  const names = s.people.map((p) => p.name.trim());
+  const err = Wichteln.checkNames(names);
+  if (err) return renderSetup(err);
+  const idx = Object.fromEntries(names.map((n, i) => [n, i]));
+  const res = Wichteln.draw(names.length, s.excl.map(([a, b]) => [idx[a], idx[b]]));
+  if (!res) return renderSetup("Mit diesen Ausschlüssen geht die Auslosung nicht auf. Bitte einen Ausschluss entfernen.");
+  const t = new Date().toISOString();
+  s.result = {
+    at: t,
+    links: names.map((von, g) => ({
+      name: von, sent: false,
+      url: baseUrl() + "#" + Wichteln.encodeTicket({ v: 1, g: s.group.name.trim(), von, fuer: names[res[g]],
+        w: s.people[res[g]].wish.trim(), b: s.group.budget.trim(), d: s.group.date, m: s.group.note.trim(), t }),
+    })),
+  };
+  save(); renderResult();
+}
+
+function message(l) {
+  const g = state.group.name.trim();
+  return `Hallo ${l.name}! 🎁\nDein Wichtel-Los${g ? ` für „${g}“` : ""} ist da. Bitte öffne den Link nur selbst:\n${l.url}`;
+}
+
+function renderResult() {
+  const r = state.result;
+  const markSent = (l) => { l.sent = true; save(); renderResult(); };
+  const rows = r.links.map((l) => h("div", { class: "share" },
+    h("div", { class: "name" }, h("span", { text: l.name }), l.sent && h("span", { class: "sent", text: "✓ verschickt" })),
+    h("div", { class: "row" },
+      h("button", { class: "wa", text: "WhatsApp", onclick: () => { window.open("https://wa.me/?text=" + encodeURIComponent(message(l)), "_blank", "noopener"); markSent(l); } }),
+      navigator.share && h("button", { text: "Teilen …", onclick: () => navigator.share({ title: "Wichtel-Los", text: message(l) }).then(() => markSent(l), () => {}) }),
+      h("button", { text: "Kopieren", onclick: (e) => {
+        const b = e.currentTarget;
+        navigator.clipboard.writeText(message(l)).then(() => { b.textContent = "Kopiert ✓"; l.sent = true; save(); }, () => { b.textContent = "Kopieren nicht möglich"; });
+      } }))));
+
+  show(
+    h("h1", { text: "🎁 Ausgelost!" }),
+    h("div", { class: "notice" },
+      h("p", { text: "Schick jeder Person ihren eigenen Link. Öffne die Links nicht selbst – sonst kennst du die Lose." }),
+      h("p", { class: "muted", style: "margin:0", text: "Die Links bleiben auf diesem Gerät gespeichert, falls jemand seinen verliert." })),
+    h("section", { class: "card", id: "links" }, h("h2", { text: `${r.links.length} Lose verschicken` }), rows),
+    h("footer", {},
+      h("button", { class: "link", text: "Namen ändern und neu auslosen", onclick: confirmInline(() => { state.result = null; save(); renderSetup(); },
+        "Bereits verschickte Links bleiben gültig – allen Bescheid geben, dass nur die neuen zählen!") }),
+      h("br"),
+      h("button", { class: "link", text: "Neue Runde anlegen", onclick: confirmInline(() => { state = fresh(); save(); renderSetup(); }, "Diese Runde löschen?") })));
+}
+
+function route() {
+  const code = location.hash.slice(1);
+  if (code) renderTicket(code);
+  else if (state.result) renderResult();
+  else renderSetup();
+  window.scrollTo(0, 0);
+}
+window.addEventListener("hashchange", route);
+route();
+</script>
+</body>
+</html>

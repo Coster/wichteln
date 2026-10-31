@@ -1,0 +1,8 @@
+{
+  "name": "wichtel-los",
+  "private": true,
+  "description": "Wichteln ohne Anmeldung - Lose als Links per Messenger",
+  "scripts": {
+    "test": "node --test wichteln.test.js"
+  }
+}
